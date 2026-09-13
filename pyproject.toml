@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "qls-westcon-comstor"
+version = "26.9.18.1"
+description = "Python SDK for the Westcon-Comstor AIM (API Integration Management) APIs."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "QLS quality solutions AB" }]
+dependencies = [
+    "httpx>=0.27",
+    "pydantic>=2.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "respx>=0.21",
+    "mypy>=1.10",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/westcon_comstor"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+# Integration tests hit the live API and require WESTCON_* credentials; excluded by
+# default. Run them with:  pytest -m integration   (set WESTCON_ENV=uat for UAT).
+addopts = "-m 'not integration'"
+markers = [
+    "integration: live API tests requiring WESTCON_* credentials (skipped by default)",
+]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true

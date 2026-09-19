@@ -13,10 +13,30 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import AliasChoices, Field
 
-from .common import Account, Address, Price, WestconModel
+from .common import Account, Address, Price, WestconModel, to_comstor_date
 
 #: The VRF fieldName that carries the Cisco vendor deal id.
 VENDOR_DEAL_ID_FIELD = "VRF_VENDOR_QUOTE_NUMBER"
+
+#: VRF fieldNames that carry the licence start/end dates (US-format, month-first).
+VRF_LIC_START_FIELD = "VRF_LIC_START_DATE"
+VRF_LIC_END_FIELD = "VRF_LIC_END_DATE"
+
+
+def parse_comstor_date(raw: Optional[str], fmt: str = "%d/%m/%Y") -> Optional[date]:
+    """Strict parse of a Comstor date string in an explicit ``fmt`` (default ``DD/MM/YYYY``).
+
+    Prefer :func:`~westcon_comstor.models.common.to_comstor_date`, which auto-detects the
+    shape; use this only when a field's format is known and you want to pin it. Returns
+    ``None`` for a blank or unparseable value.
+    """
+    raw = (raw or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, fmt).date()
+    except ValueError:
+        return None
 
 
 class NameValue(WestconModel):
@@ -94,14 +114,38 @@ class QuoteEntry(WestconModel):
     volume: Optional[str] = None
     weight: Optional[str] = None
 
-    @property
-    def vendor_deal_id(self) -> Optional[str]:
-        """The Cisco deal id: the VRF line named ``VRF_VENDOR_QUOTE_NUMBER`` (labels are stable,
-        their position is not). ``None`` when the line has no such VRF field."""
+    def vrf(self, field_name: str) -> Optional[str]:
+        """The value of the VRF line named ``field_name`` (labels are stable, position is not),
+        or ``None`` when this line has no such VRF field."""
         for nv in self.vrf_lines:
-            if nv.field_name == VENDOR_DEAL_ID_FIELD:
+            if nv.field_name == field_name:
                 return nv.value
         return None
+
+    @property
+    def vendor_deal_id(self) -> Optional[str]:
+        """The Cisco deal id: the VRF line named ``VRF_VENDOR_QUOTE_NUMBER``. ``None`` if absent."""
+        return self.vrf(VENDOR_DEAL_ID_FIELD)
+
+    @property
+    def lic_start(self) -> Optional[date]:
+        """Licence start (VRF ``VRF_LIC_START_DATE``, month-first) parsed to a date, or None."""
+        return to_comstor_date(self.vrf(VRF_LIC_START_FIELD), dayfirst=False)
+
+    @property
+    def lic_end(self) -> Optional[date]:
+        """Licence end (VRF ``VRF_LIC_END_DATE``, month-first) parsed to a date, or None."""
+        return to_comstor_date(self.vrf(VRF_LIC_END_FIELD), dayfirst=False)
+
+    @property
+    def contract_start(self) -> Optional[date]:
+        """``contract_start_date`` parsed to a date (auto-detected shape), or None."""
+        return to_comstor_date(self.contract_start_date)
+
+    @property
+    def contract_end(self) -> Optional[date]:
+        """``contract_end_date`` parsed to a date (auto-detected shape), or None."""
+        return to_comstor_date(self.contract_end_date)
 
 
 class QuoteComment(WestconModel):
@@ -129,14 +173,13 @@ class QuoteInformation(WestconModel):
 
     @property
     def expiry(self) -> Optional[date]:
-        """``expire_date`` parsed to a date, or None when absent/unparseable."""
-        raw = (self.expire_date or "").strip()
-        if not raw:
-            return None
-        try:
-            return datetime.strptime(raw, "%d/%m/%Y").date()
-        except ValueError:
-            return None
+        """``expire_date`` parsed to a date (ISO via ``.isoformat()``), or None."""
+        return to_comstor_date(self.expire_date)
+
+    @property
+    def start(self) -> Optional[date]:
+        """``start_date`` parsed to a date, or None."""
+        return to_comstor_date(self.start_date)
 
 
 class QuoteData(WestconModel):
@@ -186,6 +229,16 @@ class QuoteData(WestconModel):
         """Whether the quote's expiry date is in the past; None when the date is unknown."""
         d = self.expiry
         return (d < date.today()) if d is not None else None
+
+    @property
+    def created(self) -> Optional[date]:
+        """The quote's ``created_date`` parsed to a date (auto-detected shape), or None."""
+        return to_comstor_date(self.created_date)
+
+    @property
+    def start(self) -> Optional[date]:
+        """The quote's start date (from ``quote_information``), or None."""
+        return self.quote_information.start if self.quote_information else None
 
 
 class GetQuoteResult(WestconModel):

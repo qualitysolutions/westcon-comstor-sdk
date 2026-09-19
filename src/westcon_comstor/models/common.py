@@ -2,10 +2,60 @@
 
 from __future__ import annotations
 
+import re
+from datetime import date
 from typing import Optional
 
 from pydantic import AliasChoices, AliasGenerator, BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel, to_pascal
+
+# The three date shapes Comstor actually returns across its APIs.
+_ISO_DATE_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")        # 2026-08-07
+_COMPACT_DATE_RE = re.compile(r"^(\d{4})(\d{2})(\d{2})$")      # 20260807 (Event Listener)
+_SLASH_DATE_RE = re.compile(r"^(\d{1,2})/(\d{1,2})/(\d{4})$")  # 25/09/2026 or 09/25/2026
+
+
+def _as_date(y: int, mo: int, d: int) -> Optional[date]:
+    try:
+        return date(y, mo, d)
+    except ValueError:
+        return None
+
+
+def to_comstor_date(raw: Optional[str], dayfirst: bool = True) -> Optional[date]:
+    """Best-effort parse of ANY Comstor date string to a :class:`datetime.date`.
+
+    Comstor returns dates in three shapes across its APIs:
+
+    * ISO ``YYYY-MM-DD`` and compact ``YYYYMMDD`` - unambiguous; parsed as-is.
+    * slash ``D/M/YYYY`` - the day/month order varies by endpoint. When one part is
+      > 12 it can only be the day, so the order is auto-detected; only when BOTH parts
+      are <= 12 is the value genuinely ambiguous, and ``dayfirst`` decides (Comstor's
+      European quote dates are day-first; US-format VRF licence dates are month-first).
+
+    Unlike ``dateutil.parser`` this never applies ``dayfirst`` to ISO/compact dates,
+    never fuzzy-fills missing components, and returns ``None`` (never raises) for any
+    shape it does not recognise - so malformed data surfaces instead of being coerced.
+    Call ``.isoformat()`` on the result for an ISO string.
+    """
+    s = (raw or "").strip()
+    if not s:
+        return None
+    m = _ISO_DATE_RE.match(s) or _COMPACT_DATE_RE.match(s)
+    if m:
+        y, mo, d = (int(g) for g in m.groups())
+        return _as_date(y, mo, d)
+    m = _SLASH_DATE_RE.match(s)
+    if m:
+        a, b, y = (int(g) for g in m.groups())
+        if a > 12 >= b:        # first part can only be the day
+            d, mo = a, b
+        elif b > 12 >= a:      # second part can only be the day
+            mo, d = a, b
+        else:                  # ambiguous (both <= 12) or both invalid -> honour the hint
+            d, mo = (a, b) if dayfirst else (b, a)
+        return _as_date(y, mo, d)
+    return None
 
 
 def _validation_aliases(field_name: str) -> AliasChoices:

@@ -16,6 +16,11 @@ dependencies = [
     "pydantic>=2.6",
 ]
 
+[project.urls]
+Repository = "https://github.com/qualitysolutions/westcon-comstor-sdk"
+Changelog = "https://github.com/qualitysolutions/westcon-comstor-sdk/blob/main/CHANGELOG.md"
+Releases = "https://github.com/qualitysolutions/westcon-comstor-sdk/releases"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",

@@ -158,7 +158,8 @@ def test_availability_pascalcase_response(client, config, respx_mock):
                     {
                         "ProductNumber": "C1111-4P",
                         "storage_locations": [
-                            {"Plant": "P1", "AvailableQuantity": 5, "LeadTimeInDays": 2}
+                            {"Plant": "P1", "AvailableQuantity": 5, "AvailableOnDate": "2026-09-19",
+                             "LeadTimeInDays": 2}
                         ],
                         "error": {"errorNumber": "", "errorDescription": ""},
                     }
@@ -175,6 +176,7 @@ def test_availability_pascalcase_response(client, config, respx_mock):
     assert products[0].product_number == "C1111-4P"
     assert products[0].storage_locations[0].plant == "P1"
     assert products[0].storage_locations[0].available_quantity == 5.0
+    assert products[0].storage_locations[0].available_on_date == "2026-09-19"
 
 
 def test_availability_json_with_non_json_content_type(client, config, respx_mock):

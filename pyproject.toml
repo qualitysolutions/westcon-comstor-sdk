@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "qls-westcon-comstor"
-version = "26.9.18.1"
+version = "26.9.19"
 description = "Python SDK for the Westcon-Comstor AIM (API Integration Management) APIs."
 readme = "README.md"
 requires-python = ">=3.10"

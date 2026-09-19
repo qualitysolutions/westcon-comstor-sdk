@@ -29,6 +29,11 @@ class StorageLocation(WestconModel):
     available_quantity: Optional[float] = Field(
         default=None, validation_alias=AliasChoices("AvailableQuantity", "availableQuantity")
     )
+    #: "The date for available qty. In most cases it would be current date" (per the API
+    #: guide) - i.e. a snapshot date, NOT a reliable restock/ETA date. Prefer lead_time_in_days.
+    available_on_date: Optional[str] = Field(
+        default=None, validation_alias=AliasChoices("AvailableOnDate", "availableOnDate")
+    )
     lead_time_in_days: Optional[float] = Field(
         default=None, validation_alias=AliasChoices("LeadTimeInDays", "leadTimeInDays")
     )

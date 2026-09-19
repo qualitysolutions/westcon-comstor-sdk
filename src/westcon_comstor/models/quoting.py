@@ -8,11 +8,15 @@ is lost even where it is not explicitly declared.
 
 from __future__ import annotations
 
+from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 
 from .common import Account, Address, Price, WestconModel
+
+#: The VRF fieldName that carries the Cisco vendor deal id.
+VENDOR_DEAL_ID_FIELD = "VRF_VENDOR_QUOTE_NUMBER"
 
 
 class NameValue(WestconModel):
@@ -53,8 +57,11 @@ class QuoteEntry(WestconModel):
     customer_line_number: Optional[str] = None
     customer_part_number: Optional[str] = None
     display_entry_number: Optional[float] = None
-    vrf_lines: List[NameValue] = Field(default=[], alias="vRFLines")
-    vrf_quantities: List[NameValue] = Field(default=[], alias="vRFQuantities")
+    #: Live key is ``VRFLines`` (irregular caps); accept the doc casing too.
+    vrf_lines: List[NameValue] = Field(
+        default=[], validation_alias=AliasChoices("VRFLines", "vRFLines", "vrfLines"))
+    vrf_quantities: List[NameValue] = Field(
+        default=[], validation_alias=AliasChoices("VRFQuantities", "vRFQuantities", "vrfQuantities"))
     chemical_tax: Optional[Price] = None
     contract_start_date: Optional[str] = None
     contract_end_date: Optional[str] = None
@@ -87,6 +94,15 @@ class QuoteEntry(WestconModel):
     volume: Optional[str] = None
     weight: Optional[str] = None
 
+    @property
+    def vendor_deal_id(self) -> Optional[str]:
+        """The Cisco deal id: the VRF line named ``VRF_VENDOR_QUOTE_NUMBER`` (labels are stable,
+        their position is not). ``None`` when the line has no such VRF field."""
+        for nv in self.vrf_lines:
+            if nv.field_name == VENDOR_DEAL_ID_FIELD:
+                return nv.value
+        return None
+
 
 class QuoteComment(WestconModel):
     comment: Optional[str] = None
@@ -97,6 +113,30 @@ class QuoteComment(WestconModel):
 class QuoteUser(WestconModel):
     name: Optional[str] = None
     uid: Optional[str] = None
+
+
+class QuoteInformation(WestconModel):
+    """The ``quoteInformation`` block. Raw fields are kept as returned; ``expiry`` parses the
+    ``expire_date`` (``DD/MM/YYYY``) into a :class:`datetime.date`."""
+
+    created_by_email: Optional[str] = None
+    created_by_phone: Optional[str] = None
+    currency: Optional[List[str]] = None
+    expire_date: Optional[str] = None          # raw, e.g. "25/09/2026"
+    expire_date_in_yyyy: Optional[str] = None
+    start_date: Optional[str] = None
+    start_date_in_yyyy: Optional[str] = None
+
+    @property
+    def expiry(self) -> Optional[date]:
+        """``expire_date`` parsed to a date, or None when absent/unparseable."""
+        raw = (self.expire_date or "").strip()
+        if not raw:
+            return None
+        try:
+            return datetime.strptime(raw, "%d/%m/%Y").date()
+        except ValueError:
+            return None
 
 
 class QuoteData(WestconModel):
@@ -134,6 +174,18 @@ class QuoteData(WestconModel):
     created_by: Optional[str] = None
     created_date: Optional[str] = None
     region: Optional[str] = None
+    quote_information: Optional[QuoteInformation] = None
+
+    @property
+    def expiry(self) -> Optional[date]:
+        """The quote's parsed expiry date (from ``quote_information``), or None."""
+        return self.quote_information.expiry if self.quote_information else None
+
+    @property
+    def is_expired(self) -> Optional[bool]:
+        """Whether the quote's expiry date is in the past; None when the date is unknown."""
+        d = self.expiry
+        return (d < date.today()) if d is not None else None
 
 
 class GetQuoteResult(WestconModel):

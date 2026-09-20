@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 
 from .common import ErrorPair, WestconModel
 
@@ -52,13 +52,18 @@ class InvoiceDetail(WestconModel):
     are multi-line, so we coerce a single object (or null) into a list.
     """
 
+    # NOTE: the live response is PascalCase and flat (see parse_invoice_detail). The base model
+    # accepts camelCase + PascalCase automatically; the acronym fields below need explicit
+    # AliasChoices because neither to_camel nor to_pascal reproduces their casing.
     westcon_entity: Optional[str] = None
-    westcon_vat_id: Optional[str] = Field(default=None, alias="westconVATID")
+    westcon_vat_id: Optional[str] = Field(default=None, validation_alias=AliasChoices("WestconVATID", "westconVATID"))
     invoice_number: Optional[str] = None
     invoice_date: Optional[str] = None
     sales_order_number: Optional[str] = None
+    #: Present in the live response though absent from the spec; links the invoice to its order.
+    erp_order_number: Optional[str] = Field(default=None, validation_alias=AliasChoices("ERPOrderNumber", "eRPOrderNumber"))
     currency: Optional[str] = None
-    customer_po_number: Optional[str] = Field(default=None, alias="customerPONumber")
+    customer_po_number: Optional[str] = Field(default=None, validation_alias=AliasChoices("CustomerPONumber", "customerPONumber"))
     payment_terms: Optional[str] = None
     invoice_due_date: Optional[str] = None
     delivery_method: Optional[str] = None
@@ -68,8 +73,8 @@ class InvoiceDetail(WestconModel):
     total_chemical_fee: Optional[str] = None
     documentation_charges: Optional[str] = None
     certificate_of_origin: Optional[str] = None
-    saso_charges: Optional[str] = Field(default=None, alias="sASOCharges")
-    total_vat: Optional[str] = Field(default=None, alias="totalVAT")
+    saso_charges: Optional[str] = Field(default=None, validation_alias=AliasChoices("SASOCharges", "sASOCharges"))
+    total_vat: Optional[str] = Field(default=None, validation_alias=AliasChoices("TotalVAT", "totalVAT"))
     grand_total: Optional[str] = None
     total_price: Optional[str] = None
     total_transaction_fees: Optional[str] = None

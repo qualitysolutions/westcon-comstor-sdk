@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any, List, Mapping, Sequence, Union
 
 from .models.accounts import AccountDetailResult, AccountSearchResult
-from .models.invoices import InvoiceDetailResult, InvoiceListResult
+from .models.invoices import InvoiceDetail, InvoiceDetailResult, InvoiceListResult
 from .models.orders import (
     OpenOrderListResult,
     OrderNumberQuery,
@@ -81,9 +81,15 @@ def build_invoice_detail(partner_key: str, invoice_number: str) -> dict[str, Any
 
 
 def parse_invoice_detail(raw: Any) -> InvoiceDetailResult:
-    # The spec is inconsistent: the example envelope is ``mT_InvoiceLine_S_Resp`` while the
-    # schema names the property ``InvoiceLine_Response`` -- accept either (or no envelope).
-    return InvoiceDetailResult.model_validate(_unwrap(raw, "mT_InvoiceLine_S_Resp", "InvoiceLine_Response"))
+    # The live response contradicts the published spec. Spec: ``{"mT_InvoiceLine_S_Resp":
+    # {"invoice": {...}, "error": {...}}}``. Live: ``{"InvoiceLine_Response": {<invoice fields
+    # flat, PascalCase>, "InvoiceLine": [...]}}`` -- no ``invoice``/``error`` wrapper. Accept both.
+    inner = _unwrap(raw, "InvoiceLine_Response", "mT_InvoiceLine_S_Resp")
+    if not isinstance(inner, dict):  # e.g. {"InvoiceLine_Response": null} for a missing invoice
+        return InvoiceDetailResult(invoice=None, error=None)
+    if "invoice" in inner or "error" in inner:  # spec-shaped envelope (kept for compatibility)
+        return InvoiceDetailResult.model_validate(inner)
+    return InvoiceDetailResult(invoice=InvoiceDetail.model_validate(inner))  # live: fields are flat
 
 
 # --- Open Order List ---------------------------------------------------------

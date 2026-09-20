@@ -327,10 +327,14 @@ def parse_account_search(raw: Any) -> AccountSearchResult:
 def build_order_status_value(
     partner_key: str, order: Sequence[str], order_type: str, language: str
 ) -> dict[str, Any]:
+    # The gateway validates this endpoint against the Order Status request contract:
+    # it wants the ``mT_OrderStatus_API_REQ`` wrapper with camelCase ``orderType`` (the
+    # ``mT_OrderStatusValue_API_REQ`` / ``order_type`` form is rejected with a 400
+    # "Missing required fields: mt_orderstatus_api_req").
     return {
-        "mT_OrderStatusValue_API_REQ": {
+        "mT_OrderStatus_API_REQ": {
             "partnerKey": partner_key,
-            "order_type": order_type,
+            "orderType": order_type,
             "language": language,
             "order": list(order),
         }
@@ -338,4 +342,10 @@ def build_order_status_value(
 
 
 def parse_order_status_value(raw: Any) -> OrderStatusValueResult:
-    return OrderStatusValueResult.model_validate(_unwrap(raw, "mT_OrderStatusValue_Response"))
+    # Live responses come back as ``MT_OrderStatus_Response`` (a bare list of status
+    # lines, no order-value block); the documented ``mT_OrderStatusValue_Response``
+    # envelope with orderStatus/orderValue is also accepted.
+    inner = _unwrap(raw, "mT_OrderStatusValue_Response", "MT_OrderStatus_Response")
+    if isinstance(inner, list):
+        inner = {"orderStatus": inner}
+    return OrderStatusValueResult.model_validate(inner)

@@ -399,8 +399,24 @@ def test_order_status_value(client, config, respx_mock):
         )
     )
     result = client.orders.status_value(["000001", "000002"])
-    sent = _body(route)["mT_OrderStatusValue_API_REQ"]
+    sent = _body(route)["mT_OrderStatus_API_REQ"]
     assert sent["order"] == ["000001", "000002"]
-    assert sent["order_type"] == "W"
+    assert sent["orderType"] == "W"
     assert result.order_status[0].erp_order_number == "0001"
     assert result.order_value[0].value == "148.67"
+
+
+def test_order_status_value_bare_list_response(client, config, respx_mock):
+    # Live responses arrive as MT_OrderStatus_Response: a bare list of status lines.
+    respx_mock.post(_url(config, "orderstatusvalue/getorderstatusvalue")).mock(
+        return_value=httpx.Response(
+            200,
+            json={"MT_OrderStatus_Response": [
+                {"eRPOrderNumber": "0004608324", "eRPOrderLineNumber": "000050",
+                 "lineStatusCode": "SHP"},
+            ]},
+        )
+    )
+    result = client.orders.status_value(["0004608324"])
+    assert result.order_status[0].erp_order_line_number == "000050"
+    assert result.order_value == []

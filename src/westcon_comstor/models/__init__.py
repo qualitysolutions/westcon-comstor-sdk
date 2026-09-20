@@ -21,7 +21,7 @@ from .common import (
     to_comstor_date,
 )
 from .fx import ImpliedRate, ProductRate
-from .invoices import Invoice, InvoiceListResult
+from .invoices import Invoice, InvoiceDetail, InvoiceDetailResult, InvoiceLine, InvoiceListResult
 from .orders import (
     OpenOrder,
     OpenOrderListResult,
@@ -76,6 +76,9 @@ __all__ = [
     # invoices
     "Invoice",
     "InvoiceListResult",
+    "InvoiceLine",
+    "InvoiceDetail",
+    "InvoiceDetailResult",
     # orders
     "OpenOrder",
     "OpenOrderListResult",

@@ -48,49 +48,59 @@ def test_open_invoice_list(client, config, respx_mock):
 
 
 def test_invoice_detail(client, config, respx_mock):
+    # The LIVE response shape: envelope "InvoiceLine_Response", invoice fields flat &
+    # PascalCase (no invoice/error wrapper), InvoiceLine an array. (Differs from the spec.)
     route = respx_mock.post(_url(config, "invoices/invoicedetail")).mock(
         return_value=httpx.Response(
             200,
             json={
-                "mT_InvoiceLine_S_Resp": {
-                    "invoice": {
-                        "invoiceNumber": "43001978",
-                        "salesOrderNumber": "0004560847",
-                        "currency": "SEK",
-                        "customerPONumber": "QLS NFR",
-                        "westconVATID": "SE556xxxx01",
-                        "totalVAT": "12122.44",
-                        "sASOCharges": "0",
-                        "grandTotal": "60612.19",
-                        # spec types invoiceLine as a single object; we coerce -> list
-                        "invoiceLine": {
-                            "itemNumber": "000010",
-                            "material": "SECURE-ACCESS-SUB",
-                            "quantity": "1",
-                            "extendedPrice": "48489.75",
-                            "trackingNumber": "731659014",
-                            "serialNumbers": "FOC123",
-                        },
-                    },
-                    "error": {"error": "", "errorDescription": ""},
+                "InvoiceLine_Response": {
+                    "WestconEntity": "Westcon Group European Operations Ltd. UK Sweden Filial",
+                    "WestconVATID": "SE516404173201",
+                    "InvoiceNumber": "1035083738",
+                    "InvoiceDate": "20260422",
+                    "ERPOrderNumber": "0004488473",
+                    "Currency": "SEK",
+                    "CustomerPONumber": "A30674/P30595 Polygon EA",
+                    "PaymentTerms": "NT30",
+                    "TotalFreight": "19000.0000",
+                    "SASOCharges": "0.0000",
+                    "TotalVAT": "0.0000",
+                    "GrandTotal": "1234.56",
+                    "InvoiceLine": [
+                        {"ItemNumber": "000010", "Material": "C9200L", "Quantity": "1",
+                         "UnitOfMeasurement": "EA", "UnitPrice": "100", "ExtendedPrice": "100"},
+                        {"ItemNumber": "000020", "Material": "CAB-1", "Quantity": "2",
+                         "UnitOfMeasurement": "EA", "UnitPrice": "5", "ExtendedPrice": "10"},
+                    ],
                 }
             },
         )
     )
-    result = client.invoices.detail(invoice_number="43001978")
+    result = client.invoices.detail(invoice_number="1035083738")
     assert _body(route) == {
-        "InvoiceLine_Request": {"partnerKey": "PARTNER123", "invoiceNumber": "43001978"}
+        "InvoiceLine_Request": {"partnerKey": "PARTNER123", "invoiceNumber": "1035083738"}
     }
     inv = result.invoice
-    assert inv.invoice_number == "43001978"
-    assert inv.customer_po_number == "QLS NFR"      # customerPONumber alias
-    assert inv.westcon_vat_id == "SE556xxxx01"       # westconVATID alias
-    assert inv.total_vat == "12122.44"               # totalVAT alias
-    assert inv.saso_charges == "0"                   # sASOCharges alias
-    assert inv.grand_total == "60612.19"
-    assert len(inv.invoice_line) == 1                # single object coerced to a list
-    assert inv.invoice_line[0].tracking_number == "731659014"
-    assert inv.invoice_line[0].serial_numbers == "FOC123"
+    assert inv is not None
+    assert inv.invoice_number == "1035083738"
+    assert inv.erp_order_number == "0004488473"          # ERPOrderNumber (absent from spec)
+    assert inv.customer_po_number == "A30674/P30595 Polygon EA"  # CustomerPONumber (PascalCase)
+    assert inv.westcon_vat_id == "SE516404173201"        # WestconVATID
+    assert inv.total_vat == "0.0000"                     # TotalVAT
+    assert inv.saso_charges == "0.0000"                  # SASOCharges
+    assert inv.grand_total == "1234.56"
+    assert len(inv.invoice_line) == 2                    # real array preserved
+    assert inv.invoice_line[0].material == "C9200L"
+    assert inv.invoice_line[1].extended_price == "10"
+
+
+def test_invoice_detail_missing_returns_empty(client, config, respx_mock):
+    # A missing invoice comes back as {"InvoiceLine_Response": null}.
+    respx_mock.post(_url(config, "invoices/invoicedetail")).mock(
+        return_value=httpx.Response(200, json={"InvoiceLine_Response": None}))
+    result = client.invoices.detail(invoice_number="00000000")
+    assert result.invoice is None
 
 
 def test_open_order_list(client, config, respx_mock):

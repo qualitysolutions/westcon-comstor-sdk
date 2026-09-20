@@ -47,6 +47,52 @@ def test_open_invoice_list(client, config, respx_mock):
     assert result.invoice[0].currency == "EUR"
 
 
+def test_invoice_detail(client, config, respx_mock):
+    route = respx_mock.post(_url(config, "invoices/invoicedetail")).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "mT_InvoiceLine_S_Resp": {
+                    "invoice": {
+                        "invoiceNumber": "43001978",
+                        "salesOrderNumber": "0004560847",
+                        "currency": "SEK",
+                        "customerPONumber": "QLS NFR",
+                        "westconVATID": "SE556xxxx01",
+                        "totalVAT": "12122.44",
+                        "sASOCharges": "0",
+                        "grandTotal": "60612.19",
+                        # spec types invoiceLine as a single object; we coerce -> list
+                        "invoiceLine": {
+                            "itemNumber": "000010",
+                            "material": "SECURE-ACCESS-SUB",
+                            "quantity": "1",
+                            "extendedPrice": "48489.75",
+                            "trackingNumber": "731659014",
+                            "serialNumbers": "FOC123",
+                        },
+                    },
+                    "error": {"error": "", "errorDescription": ""},
+                }
+            },
+        )
+    )
+    result = client.invoices.detail(invoice_number="43001978")
+    assert _body(route) == {
+        "InvoiceLine_Request": {"partnerKey": "PARTNER123", "invoiceNumber": "43001978"}
+    }
+    inv = result.invoice
+    assert inv.invoice_number == "43001978"
+    assert inv.customer_po_number == "QLS NFR"      # customerPONumber alias
+    assert inv.westcon_vat_id == "SE556xxxx01"       # westconVATID alias
+    assert inv.total_vat == "12122.44"               # totalVAT alias
+    assert inv.saso_charges == "0"                   # sASOCharges alias
+    assert inv.grand_total == "60612.19"
+    assert len(inv.invoice_line) == 1                # single object coerced to a list
+    assert inv.invoice_line[0].tracking_number == "731659014"
+    assert inv.invoice_line[0].serial_numbers == "FOC123"
+
+
 def test_open_order_list(client, config, respx_mock):
     route = respx_mock.post(_url(config, "OpenOrders/GetList")).mock(
         return_value=httpx.Response(

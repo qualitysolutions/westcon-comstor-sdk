@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any, List, Mapping, Sequence, Union
 
 from .models.accounts import AccountDetailResult, AccountSearchResult
-from .models.invoices import InvoiceListResult
+from .models.invoices import InvoiceDetailResult, InvoiceListResult
 from .models.orders import (
     OpenOrderListResult,
     OrderNumberQuery,
@@ -23,6 +23,7 @@ from .models.shipping import OrderTrackResult, ShipmentTrackingResult
 
 # --- Endpoint paths (relative to Config.gateway_base_url) --------------------
 PATH_OPEN_INVOICE_LIST = "OpenInvoiceList/GetList"
+PATH_INVOICE_DETAIL = "invoices/invoicedetail"
 PATH_OPEN_ORDER_LIST = "OpenOrders/GetList"
 PATH_ORDER_STATUS = "Orders/orderStatus"
 PATH_AVAILABILITY = "api/products/availability"
@@ -72,6 +73,17 @@ def build_open_invoice_list(partner_key: str, start_date: str, end_date: str | N
 
 def parse_open_invoice_list(raw: Any) -> InvoiceListResult:
     return InvoiceListResult.model_validate(_unwrap(raw, "mT_InvoiceList_S_Resp"))
+
+
+# --- Invoice Detail ----------------------------------------------------------
+def build_invoice_detail(partner_key: str, invoice_number: str) -> dict[str, Any]:
+    return {"InvoiceLine_Request": {"partnerKey": partner_key, "invoiceNumber": invoice_number}}
+
+
+def parse_invoice_detail(raw: Any) -> InvoiceDetailResult:
+    # The spec is inconsistent: the example envelope is ``mT_InvoiceLine_S_Resp`` while the
+    # schema names the property ``InvoiceLine_Response`` -- accept either (or no envelope).
+    return InvoiceDetailResult.model_validate(_unwrap(raw, "mT_InvoiceLine_S_Resp", "InvoiceLine_Response"))
 
 
 # --- Open Order List ---------------------------------------------------------

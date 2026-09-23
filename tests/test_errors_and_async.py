@@ -59,3 +59,17 @@ async def test_async_availability(async_client, config, respx_mock):
         country_code="AU", products=[{"product_number": "C1111-4P"}]
     )
     assert products[0].product_number == "C1111-4P"
+
+
+async def test_async_pricing_many_chunks_and_flattens(async_client, config, respx_mock):
+    route = respx_mock.post(_url(config, "Pricing/RetrievePrice")).mock(
+        return_value=httpx.Response(
+            200, json={"MT_Pricing_Resp": [{"product": {"productNumber": "X", "listPrice": 1.0}}]}
+        )
+    )
+    products = [{"product_number": f"P{i}"} for i in range(5)]
+    results = await async_client.products.pricing_many(
+        country_code="DE", currency="EUR", products=products, chunk_size=2, concurrency=2
+    )
+    assert route.call_count == 3  # 5 products in chunks of 2 -> 2, 2, 1
+    assert len(results) == 3

@@ -289,6 +289,33 @@ def test_pricing(client, config, respx_mock):
     assert results[0].product.customer_price == 2.8
 
 
+def test_chunk_splits_with_remainder_and_clamps_size():
+    from westcon_comstor.resources.products import _chunk
+    assert _chunk([1, 2, 3, 4, 5], 2) == [[1, 2], [3, 4], [5]]
+    assert _chunk([], 2) == []
+    assert _chunk([1, 2], 0) == [[1], [2]]  # size clamped to >= 1
+
+
+def test_pricing_many_chunks_and_flattens(client, config, respx_mock):
+    from westcon_comstor.models.products import ProductRef
+    route = respx_mock.post(_url(config, "Pricing/RetrievePrice")).mock(
+        return_value=httpx.Response(
+            200, json={"MT_Pricing_Resp": [{"product": {"productNumber": "X", "listPrice": 1.0}}]}
+        )
+    )
+    products = [ProductRef(product_number=f"P{i}") for i in range(5)]
+    results = client.products.pricing_many(
+        country_code="DE", currency="EUR", products=products, chunk_size=2
+    )
+    assert route.call_count == 3  # 5 products in chunks of 2 -> 2, 2, 1
+    assert len(results) == 3  # one mocked result per request, flattened in order
+    sent_counts = [
+        len(json.loads(c.request.content.decode())["mT_Pricing_S_Req"]["pricing"]["products"])
+        for c in route.calls
+    ]
+    assert sent_counts == [2, 2, 1]
+
+
 def test_get_quote(client, config, respx_mock):
     route = respx_mock.post(_url(config, "QuoteDetail/retrieve")).mock(
         return_value=httpx.Response(

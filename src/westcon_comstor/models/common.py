@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from datetime import date
-from typing import Optional, get_origin
+from typing import Any, Optional, get_origin
 
 from pydantic import AliasChoices, AliasGenerator, BaseModel, ConfigDict, field_validator
 from pydantic.alias_generators import to_camel, to_pascal
@@ -93,7 +93,7 @@ class WestconModel(BaseModel):
 
     @field_validator("*", mode="before")
     @classmethod
-    def _none_to_empty_list(cls, v, info):
+    def _none_to_empty_list(cls, v: Any, info: Any) -> Any:
         """Comstor sends some array fields as ``null`` when empty (e.g. CarrierTracking's
         ``serviceEvents`` / ``additionalImages``). A bare ``List[...]`` field rejects
         ``None`` in pydantic v2, so coerce ``None`` -> ``[]`` for list-typed fields."""

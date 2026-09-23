@@ -38,7 +38,7 @@ from .errors import (
     WestconComstorError,
 )
 
-__version__ = "26.9.20.2"
+__version__ = "26.9.23"
 
 # Library logging is silent unless the host app configures a handler. The SDK logs to the
 # "westcon_comstor" logger at DEBUG (request path, timing, request_id) and WARNING (retries)

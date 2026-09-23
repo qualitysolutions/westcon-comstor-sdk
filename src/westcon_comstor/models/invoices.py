@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from pydantic import AliasChoices, Field, field_validator
 
@@ -82,7 +82,7 @@ class InvoiceDetail(WestconModel):
 
     @field_validator("invoice_line", mode="before")
     @classmethod
-    def _coerce_lines(cls, v):
+    def _coerce_lines(cls, v: Any) -> Any:
         if v is None:
             return []
         if isinstance(v, dict):  # spec types a single object; real invoices are multi-line

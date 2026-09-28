@@ -6,6 +6,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); ver
 CalVer-style `YY.M.MICRO`. All model additions are **additive** — `extra="allow"` keeps every
 raw field, so a new typed property or alias never drops data.
 
+## [26.9.28.1] - 2026-09-28
+
+### Fixed
+- `products.pricing` / `products.availability` (sync + async) no longer crash on a
+  **whitespace-only HTTP 200 body**. The live Pricing API returns such a body for some SKUs
+  (verified 2026-09-28 with `MV2-HW`; also seen for `IOTOC-1101-C`, `PWR-C1-715WAC`), which used
+  to surface as a pydantic `ValidationError`. It now parses to zero results (`[]`). Any other
+  non-JSON body raises `APIError("... returned a non-JSON body: ...")` instead of a
+  `ValidationError`.
+- `products.pricing_many` (sync + async): such a poison SKU blanks the response for **every**
+  product in its request, so a chunk of several products that returns no rows is now retried
+  one product per request. One bad SKU no longer sinks its neighbours (12 products with one
+  poison SKU -> 11 results). Cost: at most `chunk_size` extra requests per blanked chunk (429s
+  are retried by the transport as before). Errors (5xx, timeouts, auth) still propagate and are
+  **not** fanned out per product.
+
 ## [26.9.28] - 2026-09-28
 
 ### Fixed

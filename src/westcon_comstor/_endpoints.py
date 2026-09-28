@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import Any, List, Mapping, Sequence, Union
 
+from .errors import APIError
 from .models.accounts import AccountDetailResult, AccountSearchResult
 from .models.invoices import InvoiceDetail, InvoiceDetailResult, InvoiceListResult
 from .models.orders import (
@@ -60,6 +61,21 @@ def _unwrap(raw: Any, *candidate_keys: str) -> Any:
             actual = lowered.get(key.lower())
             if actual is not None:
                 return raw[actual]
+    return raw
+
+
+def _product_rows(raw: Any, endpoint: str) -> Any:
+    """Guard a Pricing/Availability body before parsing it as a list of product rows.
+
+    The transport returns non-JSON bodies as ``str``. A whitespace-only body means "no rows":
+    the live Pricing API answers HTTP 200 with just newlines for some SKUs (verified 2026-09-28
+    with ``MV2-HW``), which is returned as ``None``. Any other text is an unexpected response
+    and raises :class:`APIError` instead of an opaque pydantic ValidationError.
+    """
+    if isinstance(raw, str):
+        if not raw.strip():
+            return None
+        raise APIError(f"{endpoint} returned a non-JSON body: {raw[:80]!r}")
     return raw
 
 
@@ -157,7 +173,7 @@ def build_availability(
 
 
 def parse_availability(raw: Any) -> List[AvailabilityProduct]:
-    inner = _unwrap(raw, "Availability_Response")
+    inner = _unwrap(_product_rows(raw, "Availability"), "Availability_Response")
     if inner is None:
         return []
     if not isinstance(inner, list):
@@ -187,7 +203,7 @@ def build_pricing(
 
 
 def parse_pricing(raw: Any) -> List[PricingResult]:
-    inner = _unwrap(raw, "MT_Pricing_Resp", "mT_Pricing_Resp")
+    inner = _unwrap(_product_rows(raw, "Pricing"), "MT_Pricing_Resp", "mT_Pricing_Resp")
     if inner is None:
         return []
     if not isinstance(inner, list):

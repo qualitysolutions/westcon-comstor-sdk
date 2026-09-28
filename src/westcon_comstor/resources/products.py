@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import List, Sequence
 
 from .. import _endpoints as ep
@@ -21,6 +22,15 @@ AVAILABILITY_CHUNK_SIZE = 10
 DEFAULT_CHUNK_SIZE = PRICING_CHUNK_SIZE
 #: Chunks fetched at once by the async bulk helpers (bounded concurrency).
 DEFAULT_CONCURRENCY = 4
+
+logger = logging.getLogger("westcon_comstor")
+
+
+def _log_isolating(group: Sequence[ProductLike]) -> None:
+    # A "poison" SKU makes the Pricing API return a blank body for its whole request (verified
+    # live 2026-09-28), so an empty multi-product chunk is re-asked one product at a time.
+    logger.warning("pricing chunk of %d products returned no rows; retrying each product alone",
+                   len(group))
 
 
 def _chunk(products: Sequence[ProductLike], size: int) -> List[List[ProductLike]]:
@@ -82,13 +92,25 @@ class ProductsResource(SyncResource):
 
         The Pricing API returns at most 10 products per request and silently drops the rest,
         so ``chunk_size`` defaults to 10; a larger value loses products without any error.
+
+        A chunk of several products that returns no rows (e.g. a "poison" SKU blanking the whole
+        response) is retried one product per request, so one bad SKU cannot sink its neighbours.
+        That costs at most ``chunk_size`` extra requests per such chunk; errors still propagate.
         """
-        out: List[PricingResult] = []
-        for group in _chunk(products, chunk_size):
-            out.extend(self.pricing(
+        def _pricing(group: List[ProductLike]) -> List[PricingResult]:
+            return self.pricing(
                 country_code=country_code, currency=currency, products=group,
                 customer_price=customer_price, partner_key=partner_key,
-            ))
+            )
+
+        out: List[PricingResult] = []
+        for group in _chunk(products, chunk_size):
+            rows = _pricing(group)
+            if not rows and len(group) > 1:
+                _log_isolating(group)
+                for product in group:
+                    rows.extend(_pricing([product]))
+            out.extend(rows)
         return out
 
     def availability_many(
@@ -154,16 +176,29 @@ class AsyncProductsResource(AsyncResource):
 
         The Pricing API returns at most 10 products per request and silently drops the rest,
         so ``chunk_size`` defaults to 10; a larger value loses products without any error.
+
+        A chunk of several products that returns no rows (e.g. a "poison" SKU blanking the whole
+        response) is retried one product per request, sequentially within that chunk's
+        concurrency slot, so one bad SKU cannot sink its neighbours. That costs at most
+        ``chunk_size`` extra requests per such chunk; errors still propagate.
         """
         groups = _chunk(products, chunk_size)
         sem = asyncio.Semaphore(max(1, concurrency))
 
+        async def _pricing(group: List[ProductLike]) -> List[PricingResult]:
+            return await self.pricing(
+                country_code=country_code, currency=currency, products=group,
+                customer_price=customer_price, partner_key=partner_key,
+            )
+
         async def _one(group: List[ProductLike]) -> List[PricingResult]:
             async with sem:
-                return await self.pricing(
-                    country_code=country_code, currency=currency, products=group,
-                    customer_price=customer_price, partner_key=partner_key,
-                )
+                rows = await _pricing(group)
+                if not rows and len(group) > 1:
+                    _log_isolating(group)
+                    for product in group:
+                        rows.extend(await _pricing([product]))
+                return rows
 
         results = await asyncio.gather(*[_one(g) for g in groups])
         return [r for group_res in results for r in group_res]

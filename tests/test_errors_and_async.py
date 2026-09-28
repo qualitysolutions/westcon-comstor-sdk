@@ -73,3 +73,17 @@ async def test_async_pricing_many_chunks_and_flattens(async_client, config, resp
     )
     assert route.call_count == 3  # 5 products in chunks of 2 -> 2, 2, 1
     assert len(results) == 3
+
+
+async def test_async_pricing_many_default_chunk_returns_every_product_from_capped_api(
+    async_client, config, respx_mock, capped_pricing_api
+):
+    route = respx_mock.post(_url(config, "Pricing/RetrievePrice")).mock(
+        side_effect=capped_pricing_api
+    )
+    products = [{"product_number": f"P{i}"} for i in range(25)]
+    results = await async_client.products.pricing_many(
+        country_code="DE", currency="EUR", products=products
+    )
+    assert [r.product.product_number for r in results] == [f"P{i}" for i in range(25)]
+    assert route.call_count == 3

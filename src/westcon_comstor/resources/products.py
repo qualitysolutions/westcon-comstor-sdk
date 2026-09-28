@@ -10,9 +10,15 @@ from ..models.products import AvailabilityProduct, PricingResult
 from .._endpoints import ProductLike
 from ._base import AsyncResource, SyncResource
 
-#: Products per request for the ``*_many`` bulk helpers. The pricing/availability APIs accept
-#: many products in one call; chunking keeps a single request from getting too large.
-DEFAULT_CHUNK_SIZE = 40
+#: Products per request for :meth:`pricing_many`. The Pricing API returns AT MOST 10 products
+#: per request and silently drops the rest (verified live 2026-09-28: 12 sent -> 10 returned,
+#: no error), so a larger chunk loses products. Do not raise this above 10.
+PRICING_CHUNK_SIZE = 10
+#: Products per request for :meth:`availability_many`. Availability's cap is unverified (12/12
+#: came back live), so it stays at the known-safe pricing cap until a higher one is verified.
+AVAILABILITY_CHUNK_SIZE = 10
+#: Backwards-compatible alias (was 40 before 26.9.28, which exceeded the Pricing API cap).
+DEFAULT_CHUNK_SIZE = PRICING_CHUNK_SIZE
 #: Chunks fetched at once by the async bulk helpers (bounded concurrency).
 DEFAULT_CONCURRENCY = 4
 
@@ -67,12 +73,15 @@ class ProductsResource(SyncResource):
         products: Sequence[ProductLike],
         customer_price: str = "Y",
         partner_key: str | None = None,
-        chunk_size: int = DEFAULT_CHUNK_SIZE,
+        chunk_size: int = PRICING_CHUNK_SIZE,
     ) -> List[PricingResult]:
         """Pricing for many products in chunked requests (<= ``chunk_size`` products each).
 
         A long product list costs ``ceil(len / chunk_size)`` requests instead of one per
         product. Results are flattened in chunk order.
+
+        The Pricing API returns at most 10 products per request and silently drops the rest,
+        so ``chunk_size`` defaults to 10; a larger value loses products without any error.
         """
         out: List[PricingResult] = []
         for group in _chunk(products, chunk_size):
@@ -88,9 +97,12 @@ class ProductsResource(SyncResource):
         country_code: str,
         products: Sequence[ProductLike],
         partner_key: str | None = None,
-        chunk_size: int = DEFAULT_CHUNK_SIZE,
+        chunk_size: int = AVAILABILITY_CHUNK_SIZE,
     ) -> List[AvailabilityProduct]:
-        """Availability for many products in chunked requests (<= ``chunk_size`` products each)."""
+        """Availability for many products in chunked requests (<= ``chunk_size`` products each).
+
+        ``chunk_size`` defaults to 10; the Availability API's per-request cap is unverified.
+        """
         out: List[AvailabilityProduct] = []
         for group in _chunk(products, chunk_size):
             out.extend(self.availability(
@@ -134,11 +146,14 @@ class AsyncProductsResource(AsyncResource):
         products: Sequence[ProductLike],
         customer_price: str = "Y",
         partner_key: str | None = None,
-        chunk_size: int = DEFAULT_CHUNK_SIZE,
+        chunk_size: int = PRICING_CHUNK_SIZE,
         concurrency: int = DEFAULT_CONCURRENCY,
     ) -> List[PricingResult]:
         """Pricing for many products: chunked (<= ``chunk_size`` per request) and fetched with
         bounded concurrency (``concurrency`` chunks at once). Results are flattened in chunk order.
+
+        The Pricing API returns at most 10 products per request and silently drops the rest,
+        so ``chunk_size`` defaults to 10; a larger value loses products without any error.
         """
         groups = _chunk(products, chunk_size)
         sem = asyncio.Semaphore(max(1, concurrency))
@@ -159,10 +174,13 @@ class AsyncProductsResource(AsyncResource):
         country_code: str,
         products: Sequence[ProductLike],
         partner_key: str | None = None,
-        chunk_size: int = DEFAULT_CHUNK_SIZE,
+        chunk_size: int = AVAILABILITY_CHUNK_SIZE,
         concurrency: int = DEFAULT_CONCURRENCY,
     ) -> List[AvailabilityProduct]:
-        """Availability for many products: chunked and fetched with bounded concurrency."""
+        """Availability for many products: chunked and fetched with bounded concurrency.
+
+        ``chunk_size`` defaults to 10; the Availability API's per-request cap is unverified.
+        """
         groups = _chunk(products, chunk_size)
         sem = asyncio.Semaphore(max(1, concurrency))
 

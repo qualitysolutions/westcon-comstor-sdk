@@ -316,6 +316,19 @@ def test_pricing_many_chunks_and_flattens(client, config, respx_mock):
     assert sent_counts == [2, 2, 1]
 
 
+
+def test_pricing_many_default_chunk_returns_every_product_from_capped_api(
+    client, config, respx_mock, capped_pricing_api
+):
+    route = respx_mock.post(_url(config, "Pricing/RetrievePrice")).mock(
+        side_effect=capped_pricing_api
+    )
+    products = [{"product_number": f"P{i}"} for i in range(25)]
+    results = client.products.pricing_many(country_code="DE", currency="EUR", products=products)
+    assert [r.product.product_number for r in results] == [f"P{i}" for i in range(25)]
+    assert route.call_count == 3  # 25 products at the default chunk of 10 -> 10, 10, 5
+
+
 def test_get_quote(client, config, respx_mock):
     route = respx_mock.post(_url(config, "QuoteDetail/retrieve")).mock(
         return_value=httpx.Response(

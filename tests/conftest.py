@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from typing import Callable
+
 import httpx
 import pytest
 
@@ -49,3 +52,17 @@ async def async_client(config: Config, respx_mock):
     c = AsyncWestconComstorClient(config)
     yield c
     await c.aclose()
+
+
+@pytest.fixture
+def capped_pricing_api() -> Callable[[httpx.Request], httpx.Response]:
+    """respx side effect mimicking the live Pricing API: it returns at most 10 products per
+    request and silently drops the rest (verified 2026-09-28: 12 sent -> 10 returned)."""
+
+    def _handler(request: httpx.Request) -> httpx.Response:
+        sent = json.loads(request.content.decode())["mT_Pricing_S_Req"]["pricing"]["products"]
+        return httpx.Response(200, json={"MT_Pricing_Resp": [
+            {"product": {"productNumber": p["productNumber"], "listPrice": 1.0}} for p in sent[:10]
+        ]})
+
+    return _handler

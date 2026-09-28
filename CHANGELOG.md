@@ -6,6 +6,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); ver
 CalVer-style `YY.M.MICRO`. All model additions are **additive** — `extra="allow"` keeps every
 raw field, so a new typed property or alias never drops data.
 
+## [26.9.28] - 2026-09-28
+
+### Fixed
+- `products.pricing_many` (sync + async) now defaults to **10 products per request**
+  (`PRICING_CHUNK_SIZE`), down from 40. The Pricing API returns at most 10 products per request
+  and **silently drops the rest** with no error (verified live 2026-09-28: 12 sent -> 10
+  returned), so with the old default every product past the 10th in each chunk went missing.
+  Do not pass a `chunk_size` above 10.
+
+### Changed
+- `products.availability_many` (sync + async) also defaults to 10 (`AVAILABILITY_CHUNK_SIZE`).
+  Availability returned 12/12 live, but its cap is unverified, so it uses the known-safe value.
+- `DEFAULT_CHUNK_SIZE` is kept as a backwards-compatible alias and is now 10.
+
 ## [26.9.19.1] - 2026-09-19
 
 ### Added
@@ -49,6 +63,7 @@ raw field, so a new typed property or alias never drops data.
   by all partners) and is overridable via `WESTCON_TENANT_ID`. (26.9.18 wrongly required it
   after mislabelling it the caller's tenant.)
 
+[26.9.28]: https://github.com/qualitysolutions/westcon-comstor-sdk/releases/tag/26.9.28
 [26.9.19.1]: https://github.com/qualitysolutions/westcon-comstor-sdk/releases/tag/26.9.19.1
 [26.9.19]: https://github.com/qualitysolutions/westcon-comstor-sdk/releases/tag/26.9.19
 [26.9.18.1]: https://github.com/qualitysolutions/westcon-comstor-sdk/releases/tag/26.9.18.1

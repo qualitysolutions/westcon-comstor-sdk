@@ -7,6 +7,9 @@ two clients never drift apart.
 
 from __future__ import annotations
 
+import json
+import re
+
 from typing import Any, List, Mapping, Sequence, Union
 
 from .errors import APIError
@@ -64,18 +67,30 @@ def _unwrap(raw: Any, *candidate_keys: str) -> Any:
     return raw
 
 
+#: A JSON object key followed by a MISSING value (``"listPrice" : ,``). Comstor emits this for
+#: products it reports as ``A03 Vendor Obsolete`` (verified live 2026-09-28).
+_EMPTY_VALUE = re.compile(r'("(?:[^"\\]|\\.)*"\s*:)\s*(?=[,}\]])')
+
+
 def _product_rows(raw: Any, endpoint: str) -> Any:
     """Guard a Pricing/Availability body before parsing it as a list of product rows.
 
-    The transport returns non-JSON bodies as ``str``. A whitespace-only body means "no rows":
-    the live Pricing API answers HTTP 200 with just newlines for some SKUs (verified 2026-09-28
-    with ``MV2-HW``), which is returned as ``None``. Any other text is an unexpected response
-    and raises :class:`APIError` instead of an opaque pydantic ValidationError.
+    The transport returns non-JSON bodies as ``str``. For an ``A03 Vendor Obsolete`` product the
+    live Pricing API sends otherwise valid JSON with an EMPTY value (``"listPrice" : ,``), and
+    that one bad row makes the whole multi-product body unparseable (verified 2026-09-28 with
+    ``MV2-HW``, ``IOTOC-1101-C``, ``PWR-C1-715WAC``). Such empty values are repaired to ``null``
+    so every row, including the obsolete one with its ``A03`` error, is returned.
+
+    A whitespace-only body means "no rows" and returns ``None``. Any other text is an
+    unexpected response and raises :class:`APIError` instead of an opaque ValidationError.
     """
     if isinstance(raw, str):
         if not raw.strip():
             return None
-        raise APIError(f"{endpoint} returned a non-JSON body: {raw[:80]!r}")
+        try:
+            return json.loads(_EMPTY_VALUE.sub(r"\1 null", raw))
+        except json.JSONDecodeError:
+            raise APIError(f"{endpoint} returned a non-JSON body: {raw[:80]!r}") from None
     return raw
 
 

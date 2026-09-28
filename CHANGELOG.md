@@ -6,6 +6,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); ver
 CalVer-style `YY.M.MICRO`. All model additions are **additive** — `extra="allow"` keeps every
 raw field, so a new typed property or alias never drops data.
 
+## [26.9.28.2] - 2026-09-28
+
+### Fixed
+- `products.pricing` / `pricing_many` (sync + async) now parse the Pricing API's response for
+  **`A03 Vendor Obsolete`** products. For those, Comstor sends otherwise valid JSON with an
+  **empty value** (`"listPrice" : ,`), which made the whole body invalid JSON, so 26.9.28.1
+  raised `APIError("... non-JSON body")` for any request containing such a SKU. Empty values are
+  now repaired to `null`: the obsolete product comes back as a normal row (`list_price=None`,
+  `error=A03 "Vendor Obsolete"`) and **every other product in the same request** is returned too,
+  with no per-product retries (verified live 2026-09-28: 12 SKUs incl. 3 obsolete -> 12 rows in
+  2 requests). Unrepairable text bodies still raise `APIError`.
+
+### Corrected
+- 26.9.28.1 described these SKUs (`MV2-HW`, `IOTOC-1101-C`, `PWR-C1-715WAC`) as returning a
+  "whitespace-only" body. That was a misdiagnosis from inspecting only the body's leading
+  whitespace; the real body is the malformed JSON above. The whitespace-only handling and the
+  empty-chunk retry from 26.9.28.1 remain as defensive fallbacks.
+
 ## [26.9.28.1] - 2026-09-28
 
 ### Fixed
@@ -79,6 +97,8 @@ raw field, so a new typed property or alias never drops data.
   by all partners) and is overridable via `WESTCON_TENANT_ID`. (26.9.18 wrongly required it
   after mislabelling it the caller's tenant.)
 
+[26.9.28.2]: https://github.com/qualitysolutions/westcon-comstor-sdk/releases/tag/26.9.28.2
+[26.9.28.1]: https://github.com/qualitysolutions/westcon-comstor-sdk/releases/tag/26.9.28.1
 [26.9.28]: https://github.com/qualitysolutions/westcon-comstor-sdk/releases/tag/26.9.28
 [26.9.19.1]: https://github.com/qualitysolutions/westcon-comstor-sdk/releases/tag/26.9.19.1
 [26.9.19]: https://github.com/qualitysolutions/westcon-comstor-sdk/releases/tag/26.9.19

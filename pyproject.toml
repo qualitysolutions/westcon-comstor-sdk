@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "qls-westcon-comstor"
-version = "26.11.10"
+version = "26.11.10.1"
 description = "Python SDK for the Westcon-Comstor AIM (API Integration Management) APIs."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -14,6 +14,8 @@ authors = [{ name = "QLS quality solutions AB" }]
 dependencies = [
     "httpx>=0.27",
     "pydantic>=2.6",
+    # IANA time zones for zoneinfo where the OS has none (Windows).
+    "tzdata; sys_platform == 'win32'",
 ]
 
 [project.urls]

@@ -4,21 +4,27 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any, List, Optional
+from zoneinfo import ZoneInfo
 
 from pydantic import AliasChoices, Field, field_validator
 
 from .common import WestconModel
 
 #: Synthetic events that carry no order data (batchID 0). The live API also sends an EMPTY
-#: eventType as its idle response (confirmed by Comstor), which the spec does not document.
+#: eventType as its idle response, which the spec does not document.
 CONTROL_EVENT_TYPES = frozenset({"RECONNECT", "NODATA", ""})
+#: Event type for a shipment the carrier has delivered.
+ORDER_DELIVERED = "ORDER_DELIVERED"
+#: ``eventDate`` is US Eastern time, sent without an offset.
+EVENT_TIME_ZONE = ZoneInfo("America/New_York")
 
 
 class OrderStatusEvent(WestconModel):
     """One order line-status event.
 
-    The spec documents ``ORDER_UPDATED`` but the live UAT feed sends ``ORDER_CHANGED``
-    (verified 2026-11-10), so use :attr:`is_order_event` rather than comparing
+    ``ORDER_CHANGED`` is sent for any change to an order line (a new order's first line status
+    is ``INC`` or ``PCU``) and ``ORDER_DELIVERED`` when the carrier has delivered; the original
+    spec named ``ORDER_UPDATED``. Use :attr:`is_order_event` rather than comparing
     ``event_type`` yourself.
     """
 
@@ -30,7 +36,7 @@ class OrderStatusEvent(WestconModel):
     line_status_description: Optional[str] = None
     event_type: Optional[str] = None
     event_description: Optional[str] = None
-    #: ``YYYY-MM-DDTHH:MM:SS`` without a time zone (UAT suggests US Eastern; unconfirmed).
+    #: ``YYYY-MM-DDTHH:MM:SS`` in US Eastern time, without an offset (see :attr:`event_datetime`).
     event_date: Optional[str] = None
     status: Optional[str] = None
     status_description: Optional[str] = None
@@ -54,12 +60,18 @@ class OrderStatusEvent(WestconModel):
         return bool((self.erp_order_number or "").strip()) and not (self.is_error or self.is_control)
 
     @property
+    def is_delivered(self) -> bool:
+        """The carrier has delivered the shipment (``ORDER_DELIVERED``)."""
+        return self.is_order_event and (self.event_type or "").strip().upper() == ORDER_DELIVERED
+
+    @property
     def event_datetime(self) -> Optional[datetime]:
-        """``event_date`` as a naive :class:`datetime` (time zone unspecified), or ``None``."""
+        """``event_date`` as a time-zone-aware :class:`datetime` (US Eastern), or ``None``."""
         try:
-            return datetime.fromisoformat((self.event_date or "").strip())
+            parsed = datetime.fromisoformat((self.event_date or "").strip())
         except ValueError:
             return None
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=EVENT_TIME_ZONE)
 
     @property
     def line_key(self) -> tuple[str, str]:
@@ -109,8 +121,8 @@ class OrderStatusEventBatch(WestconModel):
     def latest_per_line(self) -> List[OrderStatusEvent]:
         """The most recent order event per order line, in first-seen order.
 
-        The live feed can deliver the same order/line several times in one batch (UAT,
-        2026-11-10: every line twice, ~45 min apart). Ties and unparseable dates keep the
+        The feed can deliver the same order/line more than once, with a new ``eventDate``
+        even when the line status is unchanged. Ties and unparseable dates keep the
         later event in the batch.
         """
         latest: dict[tuple[str, str], OrderStatusEvent] = {}

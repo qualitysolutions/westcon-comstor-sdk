@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import httpx
 import pytest
@@ -56,7 +57,9 @@ def test_poll_parses_live_uat_batch(client, config, respx_mock):
     assert first.customer_order_number == "Kund PO Åäö – 1"
     assert first.customer_line_number == ""
     assert (first.line_status_code, first.line_status_description) == ("INV", "Invoiced")
-    assert first.event_datetime == datetime(2026, 10, 29, 8, 46, 43)
+    assert first.event_datetime == datetime(2026, 10, 29, 8, 46, 43, tzinfo=ZoneInfo("America/New_York"))
+    assert first.event_datetime.astimezone(timezone.utc).hour == 12  # US Eastern (EDT) -> UTC
+    assert not first.is_delivered
     # ORDER_CHANGED (live) counts as an order event even though the spec only names ORDER_UPDATED.
     assert len(batch.order_events) == 7
     assert batch.errors == []
@@ -216,3 +219,16 @@ async def test_async_poll_and_confirm(async_client, config, respx_mock):
     assert len(batch.latest_per_line()) == 4
     assert (await async_client.order_events.confirm(batch.batch_id)).ok
     assert _body(route) == {"partnerKey": "PARTNER123", "batchID": 8}
+
+
+def test_order_delivered_event():
+    batch = OrderStatusEventBatch.model_validate({"batchID": 9, "events": [
+        {"eRPOrderNumber": "0004000001", "eRPOrderLineNumber": "000010", "lineStatusCode": "DEL",
+         "lineStatusDescription": "Delivered", "eventType": "ORDER_DELIVERED",
+         "eventDate": "2026-11-10T04:03:00"},
+        {"eRPOrderNumber": "", "eventType": "ORDER_DELIVERED"},  # no order number: not an order event
+    ]})
+    (event,) = batch.order_events
+    assert event.is_delivered and event.is_order_event
+    assert event.event_datetime.isoformat() == "2026-11-10T04:03:00-05:00"  # EST in November
+    assert not batch.events[1].is_delivered

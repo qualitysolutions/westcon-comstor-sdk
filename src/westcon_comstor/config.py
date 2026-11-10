@@ -46,6 +46,10 @@ class Config:
     #: Reseller identifier ("partnerKey") sent in most request bodies. Optional here;
     #: it can also be passed per call. Provided by Westcon-Comstor.
     partner_key: str | None = None
+    #: APIM subscription key for the Order Status Event Listener (``client.order_events``).
+    #: That API is a separate APIM product with its own key; when unset, ``subscription_key``
+    #: is used.
+    order_event_subscription_key: str | None = None
     #: Azure AD tenant for the OAuth2 token endpoint. Defaults to Westcon-Comstor's
     #: tenant (the API's authority, same for all partners). Override via
     #: ``WESTCON_TENANT_ID`` only if Westcon issues a different token endpoint.
@@ -116,6 +120,7 @@ class Config:
             "resource": pick("RESOURCE", ""),
             "subscription_key": pick("SUBSCRIPTION_KEY"),
             "partner_key": pick("PARTNER_KEY"),
+            "order_event_subscription_key": pick("ORDER_EVENT_SUBSCRIPTION_KEY"),
             "tenant_id": pick("TENANT_ID", WESTCON_AZURE_AD_TENANT_ID),
             "environment": env,
             "gateway_base_url": pick("GATEWAY_BASE_URL"),  # None -> derived from environment

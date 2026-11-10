@@ -6,6 +6,27 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); ver
 CalVer-style `YY.M.MICRO`. All model additions are **additive** — `extra="allow"` keeps every
 raw field, so a new typed property or alias never drops data.
 
+## [26.11.10] - 2026-11-10
+
+### Added
+- **Order Status Event Listener**: `client.order_events.poll()` and `.confirm()` (sync + async)
+  for `osm/api/OrderStatusMessages` and `osmc/api/OrderStatusMessagesConfirm`. Returns an
+  `OrderStatusEventBatch` with `order_events`, `errors` and `latest_per_line()`; each
+  `OrderStatusEvent` has `is_order_event` / `is_control` / `is_error`, `event_datetime` and
+  `line_key`. The HTTP read timeout follows the long-poll timeout (+30 s).
+- `Config.order_event_subscription_key` (`WESTCON_[<ENV>_]ORDER_EVENT_SUBSCRIPTION_KEY`): the
+  Order Status Event Listener's own APIM key. Falls back to `subscription_key`.
+- Transport `request(..., timeout=)` for a per-request timeout; other calls are unchanged.
+
+### Notes (live UAT vs. the 2026-09-21 doc, verified 2026-11-10)
+- Events arrive as `ORDER_CHANGED`, not the documented `ORDER_UPDATED`; both count as order
+  events.
+- Unconfirmed events are re-delivered under a new `batchID` on every poll, and one order line
+  can repeat within a batch (hence `latest_per_line()`).
+- Line numbers are zero-padded (`000010`); `customerLineNumber` is empty.
+- The Confirm response shape has not yet been observed live; `ok` is false only when the body
+  reports a non-200 `status`.
+
 ## [26.9.28.2] - 2026-09-28
 
 ### Fixed

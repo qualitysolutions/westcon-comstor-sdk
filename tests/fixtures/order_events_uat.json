@@ -1,0 +1,101 @@
+{
+  "getOrderStatusMessageResponse": {
+    "getOrderStatusMessageResult": {
+      "batchID": 8,
+      "totalEvents": 7,
+      "events": [
+        {
+          "customerLineNumber": "",
+          "customerOrderNumber": "Kund PO Åäö – 1",
+          "eRPOrderLineNumber": "000010",
+          "eRPOrderNumber": "0004000001",
+          "eventDate": "2026-10-29T08:46:43",
+          "eventDescription": "Order has been updated",
+          "eventType": "ORDER_CHANGED",
+          "lineStatusCode": "INV",
+          "lineStatusDescription": "Invoiced",
+          "status": "200",
+          "statusDescription": "Success"
+        },
+        {
+          "customerLineNumber": "",
+          "customerOrderNumber": "Kund PO Åäö – 1",
+          "eRPOrderLineNumber": "000010",
+          "eRPOrderNumber": "0004000001",
+          "eventDate": "2026-10-29T09:31:30",
+          "eventDescription": "Order has been updated",
+          "eventType": "ORDER_CHANGED",
+          "lineStatusCode": "INV",
+          "lineStatusDescription": "Invoiced",
+          "status": "200",
+          "statusDescription": "Success"
+        },
+        {
+          "customerLineNumber": "",
+          "customerOrderNumber": "Kund PO 2",
+          "eRPOrderLineNumber": "000150",
+          "eRPOrderNumber": "0004000002",
+          "eventDate": "2026-10-29T08:46:46",
+          "eventDescription": "Order has been updated",
+          "eventType": "ORDER_CHANGED",
+          "lineStatusCode": "POC",
+          "lineStatusDescription": "Awaiting Vendor Confirmation",
+          "status": "200",
+          "statusDescription": "Success"
+        },
+        {
+          "customerLineNumber": "",
+          "customerOrderNumber": "Kund PO 2",
+          "eRPOrderLineNumber": "000210",
+          "eRPOrderNumber": "0004000002",
+          "eventDate": "2026-10-29T08:46:46",
+          "eventDescription": "Order has been updated",
+          "eventType": "ORDER_CHANGED",
+          "lineStatusCode": "REJ",
+          "lineStatusDescription": "Cancelled",
+          "status": "200",
+          "statusDescription": "Success"
+        },
+        {
+          "customerLineNumber": "",
+          "customerOrderNumber": "Kund PO 2",
+          "eRPOrderLineNumber": "000150",
+          "eRPOrderNumber": "0004000002",
+          "eventDate": "2026-10-29T09:31:30",
+          "eventDescription": "Order has been updated",
+          "eventType": "ORDER_CHANGED",
+          "lineStatusCode": "POC",
+          "lineStatusDescription": "Awaiting Vendor Confirmation",
+          "status": "200",
+          "statusDescription": "Success"
+        },
+        {
+          "customerLineNumber": "",
+          "customerOrderNumber": "Kund PO 2",
+          "eRPOrderLineNumber": "000210",
+          "eRPOrderNumber": "0004000002",
+          "eventDate": "2026-10-29T09:31:30",
+          "eventDescription": "Order has been updated",
+          "eventType": "ORDER_CHANGED",
+          "lineStatusCode": "REJ",
+          "lineStatusDescription": "Cancelled",
+          "status": "200",
+          "statusDescription": "Success"
+        },
+        {
+          "customerLineNumber": "",
+          "customerOrderNumber": "test",
+          "eRPOrderLineNumber": "000010",
+          "eRPOrderNumber": "0004000003",
+          "eventDate": "2026-10-29T09:31:29",
+          "eventDescription": "Order has been updated",
+          "eventType": "ORDER_CHANGED",
+          "lineStatusCode": "POC",
+          "lineStatusDescription": "Awaiting Vendor Confirmation",
+          "status": "200",
+          "statusDescription": "Success"
+        }
+      ]
+    }
+  }
+}

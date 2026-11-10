@@ -58,6 +58,24 @@ customerOrderNumber, customerLineNumber, eRPProductNumber, lineQuantity, unitOfM
 lineStatusCode, lineStatusDescription, statusDate, shipDate, billingDocument, parentERPLine)
 and `orderValue[]` (eRPOrderNumber, customerOrderNumber, value, currency).
 
+### Order Status Event Listener — `POST /osm/api/OrderStatusMessages` + `POST /osmc/api/OrderStatusMessagesConfirm`
+Separate APIM product (own subscription key). Source: *Order Status Event Listener Technical
+Documentation* (2026-09-21), checked against UAT 2026-11-10.
+Request `getEventListenerMessage.eventListnerRequest`: partnerKey, timeoutInSeconds (5..300),
+startDate, endDate (`YYYYMMDD`, both optional). The doc now spells it `eventListenerRequest`;
+the live API accepts both.
+Response `getOrderStatusMessageResponse.getOrderStatusMessageResult`: totalEvents, batchID,
+`events[]` (eRPOrderNumber, customerOrderNumber, eRPOrderLineNumber, customerLineNumber,
+lineStatusCode, lineStatusDescription, eventType, eventDescription, eventDate, status,
+statusDescription). Confirm: `{partnerKey, batchID[, orderNumbers[]]}` ->
+`{status, statusDescription}`.
+
+Live vs. doc (UAT 2026-11-10): eventType is `ORDER_CHANGED` (doc: `ORDER_UPDATED`); every poll
+returns the unconfirmed events under a new batchID; the same order line can repeat within a
+batch; eRPOrderLineNumber is zero-padded (`000010`, doc sample `10`); customerLineNumber is
+empty; eventDate carries no time zone (looks like US Eastern). The idle response may have an
+empty eventType instead of `RECONNECT`.
+
 ## Product Information
 
 ### Availability — `POST /api/products/availability`

@@ -183,13 +183,20 @@ if batch.batch_id:                                     # 0 = idle/control respon
 - The API is a separate APIM product with its **own subscription key**: set
   `order_event_subscription_key` (or `WESTCON_[<ENV>_]ORDER_EVENT_SUBSCRIPTION_KEY`).
   Without it, `subscription_key` is used.
-- `batch.order_events` / `event.is_order_event` cover both `ORDER_UPDATED` (spec) and
-  `ORDER_CHANGED` (what the live feed sends). Idle responses (`RECONNECT`, `NODATA`, or an
-  empty `eventType`) are `is_control`; `batch.errors` holds `ERROR` events.
-- Unconfirmed events come back on every poll under a **new** `batch_id`, and the same order
-  line can appear more than once in a batch; `latest_per_line()` keeps the newest per line.
+- `batch.order_events` / `event.is_order_event` cover every order event: `ORDER_CHANGED` (any
+  change to a line, including a new order's first status `INC`/`PCU`), `ORDER_DELIVERED`
+  (`event.is_delivered`: the carrier has delivered) and the original spec's `ORDER_UPDATED`. Idle
+  responses (`RECONNECT`, `NODATA`, or an empty `eventType`) are `is_control`; `batch.errors`
+  holds `ERROR` events.
+- Confirm the **latest** `batch_id`: unconfirmed events come back on every poll under a new
+  `batch_id` and never expire. The same order line can be delivered more than once (each save in
+  Comstor's ERP creates an update record); `latest_per_line()` keeps the newest per line.
+- `confirm(batch_id, order_numbers=[...])` acknowledges only those orders: all Westcon order
+  numbers or all PO numbers, never mixed. Comstor answers "Success" even for an unknown
+  `batch_id`, so `ok` only means the confirm was not rejected.
 - `start_date` / `end_date` (`YYYYMMDD` or `date`) re-fetch events from a period, including
-  confirmed ones. `event_date` has no time zone (UAT suggests US Eastern; unconfirmed).
+  confirmed ones. `event_date` is US Eastern time; `event.event_datetime` returns it time-zone
+  aware.
 
 ## Errors
 

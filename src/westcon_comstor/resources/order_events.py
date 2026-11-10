@@ -58,7 +58,10 @@ class OrderEventsResource(SyncResource):
     ) -> OrderEventConfirmResult:
         """Acknowledge a batch so its events are not re-delivered.
 
-        Pass ``order_numbers`` to acknowledge only those orders of the batch.
+        Confirm the latest ``batch_id``: unconfirmed events are re-delivered under a new batchID
+        on every poll and never expire. Pass ``order_numbers`` to acknowledge only those orders:
+        all Westcon order numbers or all PO numbers, never mixed (Comstor answers 500). Comstor
+        answers "Success" even for an unknown batchID, so ``ok`` only means it was not rejected.
         """
         payload = ep.build_order_events_confirm(self._partner_key(partner_key), batch_id, order_numbers)
         raw = self._t.request(

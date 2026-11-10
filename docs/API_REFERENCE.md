@@ -70,11 +70,16 @@ lineStatusCode, lineStatusDescription, eventType, eventDescription, eventDate, s
 statusDescription). Confirm: `{partnerKey, batchID[, orderNumbers[]]}` ->
 `{status, statusDescription}`.
 
-Live vs. doc (UAT 2026-11-10): eventType is `ORDER_CHANGED` (doc: `ORDER_UPDATED`); every poll
-returns the unconfirmed events under a new batchID; the same order line can repeat within a
-batch; eRPOrderLineNumber is zero-padded (`000010`, doc sample `10`); customerLineNumber is
-empty; eventDate carries no time zone (looks like US Eastern). The idle response may have an
-empty eventType instead of `RECONNECT`.
+Confirmed by Comstor and in UAT (2026-11-10): eventType is `ORDER_CHANGED` for any line change
+(the doc now says so; the original spec named `ORDER_UPDATED`) or `ORDER_DELIVERED` when the
+carrier has delivered; a new order's first line status is `INC` or `PCU`. Every poll returns all
+unconfirmed events under a new batchID, they never expire, and the latest batchID should be
+confirmed. An order line can be delivered more than once (each save in the ERP creates an
+update record). eRPOrderLineNumber is zero-padded (`000010`); customerLineNumber is only filled
+when the PO carries line numbers. eventDate is US Eastern time. Partial confirm reads
+`orderNumbers` (not `orderNumber`): all Westcon order numbers or all PO numbers, never mixed.
+Unknown fields and unknown batchIDs answer "Success". The idle response may have an empty
+eventType instead of `RECONNECT`.
 
 ## Product Information
 

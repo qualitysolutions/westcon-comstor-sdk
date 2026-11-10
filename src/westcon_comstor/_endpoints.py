@@ -446,8 +446,10 @@ def parse_order_events(raw: Any) -> OrderStatusEventBatch:
 def build_order_events_confirm(
     partner_key: str, batch_id: int, order_numbers: Sequence[str] | None
 ) -> dict[str, Any]:
-    # The spec's field table says "orderNumber" but its sample uses "orderNumbers"; we send the
-    # sample's spelling (unconfirmed with Comstor).
+    # "orderNumbers" (the spec's sample; its field table says "orderNumber"). Verified in UAT
+    # 2026-11-10: only "orderNumbers" is read - a mixed list there is rejected (500) while the same
+    # list under "orderNumber" is silently ignored. Unknown fields and unknown batchIDs both
+    # answer "Success", so the response does not prove anything was confirmed.
     payload: dict[str, Any] = {"partnerKey": partner_key, "batchID": batch_id}
     if order_numbers:
         payload["orderNumbers"] = list(order_numbers)

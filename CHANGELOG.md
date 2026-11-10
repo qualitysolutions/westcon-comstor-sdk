@@ -6,6 +6,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); ver
 CalVer-style `YY.M.MICRO`. All model additions are **additive** — `extra="allow"` keeps every
 raw field, so a new typed property or alias never drops data.
 
+## [26.11.10.1] - 2026-11-10
+
+### Added
+- `OrderStatusEvent.is_delivered`: `ORDER_DELIVERED`, the event Comstor sends when the carrier
+  has delivered the shipment.
+
+### Changed
+- `OrderStatusEvent.event_datetime` is now **time-zone aware** (US Eastern, confirmed by
+  Comstor) instead of naive. Comparisons with other aware datetimes and `.astimezone()` now give
+  the right instant; code that compared it with a naive datetime must use an aware one.
+- Docs: replaced the open questions about the Order Status Event Listener with Comstor's answers
+  (`ORDER_CHANGED` / `ORDER_DELIVERED`, confirm the latest batchID, unconfirmed events never
+  expire, re-sent updates, US Eastern `eventDate`, partial confirm with all-Westcon or all-PO
+  numbers) and what UAT showed: only `orderNumbers` is read, and Confirm answers "Success" for
+  unknown fields and batchIDs.
+- Windows: `tzdata` is installed so `zoneinfo` has the US Eastern zone.
+
 ## [26.11.10] - 2026-11-10
 
 ### Added

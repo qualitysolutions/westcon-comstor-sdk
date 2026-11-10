@@ -6,6 +6,7 @@ from .accounts import AccountsResource, AsyncAccountsResource
 from .fx import AsyncFxResource, FxResource
 from .invoices import AsyncInvoicesResource, InvoicesResource
 from .misc import AemResource, AsyncAemResource
+from .order_events import AsyncOrderEventsResource, OrderEventsResource
 from .orders import AsyncOrdersResource, OrdersResource
 from .products import AsyncProductsResource, ProductsResource
 from .quoting import AsyncQuotesResource, QuotesResource
@@ -16,6 +17,8 @@ __all__ = [
     "AsyncInvoicesResource",
     "OrdersResource",
     "AsyncOrdersResource",
+    "OrderEventsResource",
+    "AsyncOrderEventsResource",
     "ProductsResource",
     "AsyncProductsResource",
     "QuotesResource",

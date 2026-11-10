@@ -22,6 +22,7 @@ from .common import (
 )
 from .fx import ImpliedRate, ProductRate
 from .invoices import Invoice, InvoiceDetail, InvoiceDetailResult, InvoiceLine, InvoiceListResult
+from .order_events import OrderEventConfirmResult, OrderStatusEvent, OrderStatusEventBatch
 from .orders import (
     OpenOrder,
     OpenOrderListResult,
@@ -88,6 +89,10 @@ __all__ = [
     "OrderStatusValueLine",
     "OrderStatusValueResult",
     "OrderValue",
+    # order events
+    "OrderStatusEvent",
+    "OrderStatusEventBatch",
+    "OrderEventConfirmResult",
     # products
     "ProductRef",
     "StorageLocation",

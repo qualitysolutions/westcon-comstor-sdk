@@ -148,6 +148,7 @@ class SyncTransport:
         params: Mapping[str, Any] | None = None,
         headers: Mapping[str, str] | None = None,
         authenticated: bool = True,
+        timeout: float | None = None,
     ) -> Any:
         url = _build_url(self._config, path)
         attempt = 0
@@ -162,7 +163,8 @@ class SyncTransport:
             started = time.perf_counter()
             try:
                 response = self._client.request(
-                    method, url, json=json, params=params, headers=request_headers
+                    method, url, json=json, params=params, headers=request_headers,
+                    timeout=httpx.USE_CLIENT_DEFAULT if timeout is None else timeout,
                 )
             except httpx.TimeoutException as exc:
                 if attempt < self._config.max_retries:
@@ -236,6 +238,7 @@ class AsyncTransport:
         params: Mapping[str, Any] | None = None,
         headers: Mapping[str, str] | None = None,
         authenticated: bool = True,
+        timeout: float | None = None,
     ) -> Any:
         url = _build_url(self._config, path)
         attempt = 0
@@ -250,7 +253,8 @@ class AsyncTransport:
             started = time.perf_counter()
             try:
                 response = await self._client.request(
-                    method, url, json=json, params=params, headers=request_headers
+                    method, url, json=json, params=params, headers=request_headers,
+                    timeout=httpx.USE_CLIENT_DEFAULT if timeout is None else timeout,
                 )
             except httpx.TimeoutException as exc:
                 if attempt < self._config.max_retries:

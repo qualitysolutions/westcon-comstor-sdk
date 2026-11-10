@@ -129,6 +129,8 @@ async with AsyncWestconComstorClient() as client:   # reads WESTCON_* env vars
 | `client.orders`    | `status_value()`                    | `POST /orderstatusvalue/getorderstatusvalue` |
 | `client.orders`    | `invoiced_lines()`                  | derived (Order Status, `INV` lines)        |
 | `client.orders`    | `invoices()`                        | derived (`INV` lines grouped by invoice)   |
+| `client.order_events` | `poll()`                         | `POST /osm/api/OrderStatusMessages`        |
+| `client.order_events` | `confirm()`                      | `POST /osmc/api/OrderStatusMessagesConfirm` |
 | `client.products`  | `availability()`                    | `POST /api/products/availability`          |
 | `client.products`  | `pricing()`                         | `POST /Pricing/RetrievePrice`              |
 | `client.quotes`    | `get()`                             | `POST /QuoteDetail/retrieve`               |
@@ -163,6 +165,31 @@ for r in client.fx.rates(bases=["EUR", "USD"], quote="SEK",
 `sample_count`, per-product `samples`, and `skipped` (products missing a price in one
 currency). Uses `listPrice` by default (`price_field="customer"` to switch). It's a
 *snapshot* — re-run to track changes. See [`examples/fx_rates.py`](examples/fx_rates.py).
+
+## Order Status Event Listener (`client.order_events`)
+
+A long-poll queue of order **line-status** events (all orders, regardless of channel).
+Poll, process, then confirm the batch so the events are not delivered again:
+
+```python
+batch = client.order_events.poll(timeout_seconds=60)   # blocks up to 60 s (5..300)
+for event in batch.latest_per_line():                  # order events, de-duplicated
+    print(event.erp_order_number, event.erp_order_line_number,
+          event.line_status_code, event.event_datetime)
+if batch.batch_id:                                     # 0 = idle/control response
+    client.order_events.confirm(batch.batch_id)
+```
+
+- The API is a separate APIM product with its **own subscription key**: set
+  `order_event_subscription_key` (or `WESTCON_[<ENV>_]ORDER_EVENT_SUBSCRIPTION_KEY`).
+  Without it, `subscription_key` is used.
+- `batch.order_events` / `event.is_order_event` cover both `ORDER_UPDATED` (spec) and
+  `ORDER_CHANGED` (what the live feed sends). Idle responses (`RECONNECT`, `NODATA`, or an
+  empty `eventType`) are `is_control`; `batch.errors` holds `ERROR` events.
+- Unconfirmed events come back on every poll under a **new** `batch_id`, and the same order
+  line can appear more than once in a batch; `latest_per_line()` keeps the newest per line.
+- `start_date` / `end_date` (`YYYYMMDD` or `date`) re-fetch events from a period, including
+  confirmed ones. `event_date` has no time zone (UAT suggests US Eastern; unconfirmed).
 
 ## Errors
 

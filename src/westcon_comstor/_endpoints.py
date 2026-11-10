@@ -10,11 +10,13 @@ from __future__ import annotations
 import json
 import re
 
+from datetime import date
 from typing import Any, List, Mapping, Sequence, Union
 
 from .errors import APIError
 from .models.accounts import AccountDetailResult, AccountSearchResult
 from .models.invoices import InvoiceDetail, InvoiceDetailResult, InvoiceListResult
+from .models.order_events import OrderEventConfirmResult, OrderStatusEventBatch
 from .models.orders import (
     OpenOrderListResult,
     OrderNumberQuery,
@@ -39,6 +41,8 @@ PATH_ACCOUNT_DETAIL = "accountdetail/getaccountdetail"
 PATH_ACCOUNT_SEARCH = "accountsearch/getaccounts"
 PATH_ORDER_STATUS_VALUE = "orderstatusvalue/getorderstatusvalue"
 PATH_AEM_SECURE_CONTENT = "aem-secure-content/order_now"
+PATH_ORDER_EVENTS = "osm/api/OrderStatusMessages"
+PATH_ORDER_EVENTS_CONFIRM = "osmc/api/OrderStatusMessagesConfirm"
 
 ProductLike = Union[ProductRef, Mapping[str, Any]]
 
@@ -398,3 +402,59 @@ def parse_order_status_value(raw: Any) -> OrderStatusValueResult:
     if isinstance(inner, list):
         inner = {"orderStatus": inner}
     return OrderStatusValueResult.model_validate(inner)
+
+
+# --- Order Status Event Listener ---------------------------------------------
+def _compact_date(value: Union[str, date, None]) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, date):
+        return value.strftime("%Y%m%d")
+    return value
+
+
+def build_order_events_poll(
+    partner_key: str,
+    timeout_seconds: int,
+    start_date: Union[str, date, None],
+    end_date: Union[str, date, None],
+) -> dict[str, Any]:
+    if not 5 <= timeout_seconds <= 300:
+        raise ValueError("timeout_seconds must be between 5 and 300")
+    # The original API only accepted the misspelled "eventListnerRequest"; the 2026-09-21 doc
+    # "corrected" it and the live API now accepts both (verified in UAT 2026-11-10). Keep the
+    # spelling that has always worked.
+    return {
+        "getEventListenerMessage": {
+            "eventListnerRequest": {
+                "partnerKey": partner_key,
+                "timeoutInSeconds": timeout_seconds,
+                "startDate": _compact_date(start_date),
+                "endDate": _compact_date(end_date),
+            }
+        }
+    }
+
+
+def parse_order_events(raw: Any) -> OrderStatusEventBatch:
+    inner = _unwrap(_unwrap(raw, "getOrderStatusMessageResponse"), "getOrderStatusMessageResult")
+    if not isinstance(inner, dict):
+        return OrderStatusEventBatch()
+    return OrderStatusEventBatch.model_validate(inner)
+
+
+def build_order_events_confirm(
+    partner_key: str, batch_id: int, order_numbers: Sequence[str] | None
+) -> dict[str, Any]:
+    # The spec's field table says "orderNumber" but its sample uses "orderNumbers"; we send the
+    # sample's spelling (unconfirmed with Comstor).
+    payload: dict[str, Any] = {"partnerKey": partner_key, "batchID": batch_id}
+    if order_numbers:
+        payload["orderNumbers"] = list(order_numbers)
+    return payload
+
+
+def parse_order_events_confirm(raw: Any) -> OrderEventConfirmResult:
+    if not isinstance(raw, dict):
+        return OrderEventConfirmResult()
+    return OrderEventConfirmResult.model_validate(raw)

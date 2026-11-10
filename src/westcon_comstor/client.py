@@ -15,12 +15,14 @@ from .resources import (
     AsyncAemResource,
     AsyncFxResource,
     AsyncInvoicesResource,
+    AsyncOrderEventsResource,
     AsyncOrdersResource,
     AsyncProductsResource,
     AsyncQuotesResource,
     AsyncShippingResource,
     FxResource,
     InvoicesResource,
+    OrderEventsResource,
     OrdersResource,
     ProductsResource,
     QuotesResource,
@@ -63,6 +65,7 @@ class WestconComstorClient:
 
         self.invoices = InvoicesResource(self._transport, self._config)
         self.orders = OrdersResource(self._transport, self._config)
+        self.order_events = OrderEventsResource(self._transport, self._config)
         self.products = ProductsResource(self._transport, self._config)
         self.quotes = QuotesResource(self._transport, self._config)
         self.shipping = ShippingResource(self._transport, self._config)
@@ -127,6 +130,7 @@ class AsyncWestconComstorClient:
 
         self.invoices = AsyncInvoicesResource(self._transport, self._config)
         self.orders = AsyncOrdersResource(self._transport, self._config)
+        self.order_events = AsyncOrderEventsResource(self._transport, self._config)
         self.products = AsyncProductsResource(self._transport, self._config)
         self.quotes = AsyncQuotesResource(self._transport, self._config)
         self.shipping = AsyncShippingResource(self._transport, self._config)
